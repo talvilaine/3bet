@@ -11,7 +11,7 @@
 			<h1>Калькулятор букмекерской маржи</h1>
 		</div>
 		<p>
-			<toggle-variants :values="resultVariants" :selected="resultsCount" @update:selected="resultsCount = $event" :def="resultsCountDef"></toggle-variants>
+			<toggle-variants :values="resultVariants" :selected="resultsCount" @update:selected="resultsCount = $event" :def="resultsMax"></toggle-variants>
 		</p>
 		<div class="table-responsive">
 			<table class="table table-bordered">
@@ -26,18 +26,13 @@
 				<tbody>
 					<tr>
 						<th scope="row">Коэффициенты</th>
-						<!--<div v-for="n in resultsCount">
-							<input v-model="koef[n]">
-						</div>-->
-
-						<td>
-							<label><input type="text" name="koef1" class="form-control" value="1,926"></label>
-						</td>
-						<td>
-							<label><input type="text" name="koef2" class="form-control" value="2,02"></label>
-						</td>
-						<td v-if="resultsCount > 2">
-							<label><input type="text" name="koef3" class="form-control" value="2,65"></label>
+						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+							<label>
+								<input
+									:value="oneInput.view"
+									@input="oneInput.view = onInputChange($event.target.value, index)"
+									type="text" name="koef1" class="form-control">
+							</label>
 						</td>
 					</tr>
 					<tr>
@@ -113,10 +108,12 @@
 		</div>
 	</script>
   	<script>
-		Vue.component('toggle-variants', {
+		//todo https://github.com/scleriot/vue-inputmask
+
+		var ToggleVariants = {
 			props: [ 'values', 'selected', 'def' ],
 			template: '#toggle-variants-tpl',
-			ready: function (){
+			ready: function(){
 				this.selected = this.def;
 			},
 			methods: {
@@ -124,22 +121,60 @@
 					this.$emit('update:selected', val)
 				}
 			}
-		});
+		};
+		/*Vue.component('toggle-variants', {
+			props: [ 'values', 'selected', 'def' ],
+			template: '#toggle-variants-tpl',
+			ready: function(){
+				this.selected = this.def;
+			},
+			methods: {
+				changeSelectVal: function(val){
+					this.$emit('update:selected', val)
+				}
+			}
+		});*/
 
 		var app3bet = new Vue({
 			el: '#app3bet',
+			created: function(){
+				while (this.inputs.length < this.resultsMax) {
+					this.inputs.push({ 'view': '', 'clean': '' });
+				}
+			},
 			data: {
 				resultVariants: { 2 : 'Два исхода', 3 : 'Три исхода' },
-				resultsCountDef: 2,
-				resultsCount: 2,
-				results: {
-
-				},
-				koef: []
+				resultsCountChosen: 0,
+				inputs: [],
+				resultsMin: 2,
+				resultsMax: 3,
+				results: []
 			},
 			computed: {
+				resultsCount: {
+					get: function(){
+						return this.resultsCountChosen || this.resultsMin;// Math.max ?
+					},
+					set: function(val){
+						this.resultsCountChosen = val;
+					}
+				},
+				inputsFiltered: function(){
+					return this.inputs.slice(0, this.resultsCount);
+				}
+			},
+			methods: {
+				onInputChange: function(value, inputIndex){
+					// todo норм валидацию
+					this.inputs[inputIndex].clean = value.length ? value.replace(',', '.') : '';
+
+					return value;
+				}
+			},
+			components: {
+				'toggle-variants': ToggleVariants
 			}
-		})
+		});
 	</script>
   </body>
 </html>
