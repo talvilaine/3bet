@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <title>Калькулятор букмекерской маржи</title>
     <link href="https://3bet.pro/resources/css/bootstrap.min.css" rel="stylesheet">
+  	<style>
+
+	</style>
   </head>
   <body>
 	<div class="container" id="app3bet">
@@ -25,70 +28,79 @@
 				</thead>
 				<tbody>
 					<tr>
-						<th scope="row">Коэффициенты</th>
+						<th scope="row">Коэффициенты{{errors}}</th>
 						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
-							<label>
-								<input
-									:value="oneInput.view"
-									@input="oneInput.view = onInputChange($event.target.value, index)"
-									type="text" name="koef1" class="form-control">
+							<label :class="{ 'has-error': errors.has('koef' + index) }">
+								<input v-validate.initial="{ required: true, regex: inputsRegex }"
+									:value="oneInput.view" @input="oneInput.view = onInputChange($event.target.value, index)"
+									type="text" :name="'koef' + index" class="form-control">
 							</label>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">Маржа БК</th>
-						<td v-if="resultsCount > 2" :colspan="resultsCount" class="text-center">
-							(1/koef1+1/koef2+1/koef3)-1
-						</td>
-						<td v-else :colspan="resultsCount" class="text-center">
-							(1/koef1+1/koef2)-1
+
+						<td :colspan="resultsCount" class="text-center">
+							<div v-if="errors.items.length" class="alert alert-danger">
+								Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{ getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов' )}}
+							</div>
+							<div v-else>
+								(1/koef1+1/koef2+1/koef3)-1
+							</div>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">Вероятность наступления исхода</th>
 						<template v-if="resultsCount > 2">
-							<td>
-								C33 = 1/koef1/(1/koef1+1/koef2+1/koef3)
-							</td>
-							<td>
-								D33 = 1/koef2/(1/koef1+1/koef2+1/koef3)
-							</td>
-							<td>
-								E31 = 1/koef3/(1/koef1+1/koef2+1/koef3)
+							<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+								<div v-if="errors.items.length" class="alert alert-danger">
+									Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов')}}
+								</div>
+								<div v-else>
+									C33 = 1/koef1/(1/koef1+1/koef2+1/koef3)
+								</div>
 							</td>
 						</template>
 						<template v-else>
-							<td>
-								C33 = 1/koef1/(1/koef1+1/koef2)
+							<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+								<div v-if="errors.items.length" class="alert alert-danger">
+									Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов')}}
+								</div>
+								<div v-else>
+									C33 = 1/koef1/(1/koef1+1/koef2)
+								</div>
+
 							</td>
-							<td>
+							<!--<td>
 								D33 = 1/koef2/(1/koef1+1/koef2)
-							</td>
+							</td>-->
 						</template>
 					</tr>
 					<tr>
-						<th scope="row">Вероятно с учётом маржи</th>
-						<td>
-							1/koef1
+						<th scope="row">Вероятность с учётом маржи</th>
+						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+							<div v-if="!errors.has('koef' + index)">
+								{{ oneInput.realMargin }} 1/koef1 ---{{oneInput}}
+							</div>
 						</td>
-						<td>
+						<!--<td>
 							1/koef2
 						</td>
 						<td v-if="resultsCount > 2">
 							1/koef3
-						</td>
+						</td>-->
 					</tr>
 					<tr>
 						<th scope="row">Реальные коэффициенты</th>
-						<td>
+						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
 							1/C33
 						</td>
-						<td>
+						<!--<td>
 							1/D33
 						</td>
 						<td v-if="resultsCount > 2">
 							1/E31
-						</td>
+						</td>-->
 					</tr>
 				</tbody>
 			</table>
@@ -98,6 +110,8 @@
     <script src="https://3bet.pro/resources/lib/jquery/jquery.min.js"></script>
     <script src="https://3bet.pro/resources/lib/bootstrap/bootstrap.min.js"></script>
 	<script src="https://unpkg.com/vue"></script>
+	<script src="https://unpkg.com/vee-validate@2.1.0-beta.1/dist/vee-validate.js"></script>
+
 	<script type="text/x-template" id="toggle-variants-tpl">
 		<div class="btn-group">
 			<button type="button"
@@ -108,7 +122,7 @@
 		</div>
 	</script>
   	<script>
-		//todo https://github.com/scleriot/vue-inputmask
+		Vue.use(VeeValidate);
 
 		var ToggleVariants = {
 			props: [ 'values', 'selected', 'def' ],
@@ -122,19 +136,6 @@
 				}
 			}
 		};
-		/*Vue.component('toggle-variants', {
-			props: [ 'values', 'selected', 'def' ],
-			template: '#toggle-variants-tpl',
-			ready: function(){
-				this.selected = this.def;
-			},
-			methods: {
-				changeSelectVal: function(val){
-					this.$emit('update:selected', val)
-				}
-			}
-		});*/
-
 		var app3bet = new Vue({
 			el: '#app3bet',
 			created: function(){
@@ -146,6 +147,7 @@
 				resultVariants: { 2 : 'Два исхода', 3 : 'Три исхода' },
 				resultsCountChosen: 0,
 				inputs: [],
+				inputsRegex: /^\d+([\.,]\d+)?$/,
 				resultsMin: 2,
 				resultsMax: 3,
 				results: []
@@ -153,11 +155,17 @@
 			computed: {
 				resultsCount: {
 					get: function(){
-						return this.resultsCountChosen || this.resultsMin;// Math.max ?
+						return this.resultsCountChosen || this.resultsMin; /* А может лучше будет Math.max */
 					},
 					set: function(val){
 						this.resultsCountChosen = val;
 					}
+				},
+				realMargins: function() {
+					this.inputs.forEach(function(input) {
+
+						input.realMargin = 1/input.clean;
+					});
 				},
 				inputsFiltered: function(){
 					return this.inputs.slice(0, this.resultsCount);
@@ -169,6 +177,23 @@
 					this.inputs[inputIndex].clean = value.length ? value.replace(',', '.') : '';
 
 					return value;
+				},
+				getDeclension: function(number, one, two, five){
+					/* На самом деле этот метод не так уж необходим, можно и попроще сообщение для алерта придумать, но захотелось просклонять */
+					numberLocal = Math.abs(number);
+					numberLocal %= 100;
+					if (numberLocal >= 5 && numberLocal <= 20) {
+						return five
+					}
+					numberLocal %= 10;
+					if (numberLocal == 1) {
+						return one;
+					}
+					if (numberLocal >= 2 && numberLocal <= 4) {
+						return two;
+					}
+
+					return five;
 				}
 			},
 			components: {
