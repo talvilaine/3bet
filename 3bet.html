@@ -1,207 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Калькулятор букмекерской маржи</title>
-    <link href="https://3bet.pro/resources/css/bootstrap.min.css" rel="stylesheet">
-  	<style>
-
-	</style>
-  </head>
-  <body>
-	<div class="container" id="app3bet">
-		<div class="page-header">
-			<h1>Калькулятор букмекерской маржи</h1>
-		</div>
-		<p>
-			<toggle-variants :values="resultVariants" :selected="resultsCount" @update:selected="resultsCount = $event" :def="resultsMax"></toggle-variants>
-		</p>
-		<div class="table-responsive">
-			<table class="table table-bordered">
-				<thead>
-					<tr>
-						<td></td>
-						<th>Исход 1</th>
-						<th>Исход 2</th>
-						<th v-if="resultsCount > 2">Исход 3</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<th scope="row">Коэффициенты{{errors}}</th>
-						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
-							<label :class="{ 'has-error': errors.has('koef' + index) }">
-								<input v-validate.initial="{ required: true, regex: inputsRegex }"
-									:value="oneInput.view" @input="oneInput.view = onInputChange($event.target.value, index)"
-									type="text" :name="'koef' + index" class="form-control">
-							</label>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row">Маржа БК</th>
-
-						<td :colspan="resultsCount" class="text-center">
-							<div v-if="errors.items.length" class="alert alert-danger">
-								Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{ getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов' )}}
-							</div>
-							<div v-else>
-								(1/koef1+1/koef2+1/koef3)-1
-							</div>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row">Вероятность наступления исхода</th>
-						<template v-if="resultsCount > 2">
-							<td v-for="(oneInput, index) in inputsFiltered" :key="index">
-								<div v-if="errors.items.length" class="alert alert-danger">
-									Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов')}}
-								</div>
-								<div v-else>
-									C33 = 1/koef1/(1/koef1+1/koef2+1/koef3)
-								</div>
-							</td>
-						</template>
-						<template v-else>
-							<td v-for="(oneInput, index) in inputsFiltered" :key="index">
-								<div v-if="errors.items.length" class="alert alert-danger">
-									Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов')}}
-								</div>
-								<div v-else>
-									C33 = 1/koef1/(1/koef1+1/koef2)
-								</div>
-
-							</td>
-							<!--<td>
-								D33 = 1/koef2/(1/koef1+1/koef2)
-							</td>-->
-						</template>
-					</tr>
-					<tr>
-						<th scope="row">Вероятность с учётом маржи</th>
-						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
-							<div v-if="!errors.has('koef' + index)">
-								{{ oneInput.realMargin }} 1/koef1 ---{{oneInput}}
-							</div>
-						</td>
-						<!--<td>
-							1/koef2
-						</td>
-						<td v-if="resultsCount > 2">
-							1/koef3
-						</td>-->
-					</tr>
-					<tr>
-						<th scope="row">Реальные коэффициенты</th>
-						<td v-for="(oneInput, index) in inputsFiltered" :key="index">
-							1/C33
-						</td>
-						<!--<td>
-							1/D33
-						</td>
-						<td v-if="resultsCount > 2">
-							1/E31
-						</td>-->
-					</tr>
-				</tbody>
-			</table>
-
-		</div>
-	</div>
-    <script src="https://3bet.pro/resources/lib/jquery/jquery.min.js"></script>
-    <script src="https://3bet.pro/resources/lib/bootstrap/bootstrap.min.js"></script>
+<head>
+	<meta charset="utf-8">
+	<title>Калькулятор букмекерской маржи</title>
+	<link href="https://3bet.pro/resources/css/bootstrap.min.css" rel="stylesheet">
+	<script src="https://3bet.pro/resources/lib/jquery/jquery.min.js"></script>
+	<script src="https://3bet.pro/resources/lib/bootstrap/bootstrap.min.js"></script>
 	<script src="https://unpkg.com/vue"></script>
 	<script src="https://unpkg.com/vee-validate@2.1.0-beta.1/dist/vee-validate.js"></script>
+</head>
+<body>
+<div class="container" id="app3bet">
+	<div class="page-header">
+		<h1>Калькулятор букмекерской маржи</h1>
+	</div>
+	<p>
+		<toggle-variants :values="resultVariants" :selected="resultsCount" @update:selected="resultsCount = $event" :def="resultsMax"></toggle-variants>
+	</p>
+	<!--<pre>{{errors}}</pre>-->
+	<div class="table-responsive">
+		<table class="table table-bordered">
+			<thead>
+			<tr>
+				<td></td>
+				<th v-for="(oneInput, index) in inputsFiltered" :key="index">Исход {{index + 1}}</th>
+			</tr>
+			</thead>
+			<tbody>
+			<tr>
+				<th scope="row">Коэффициенты</th>
+				<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+					<label :class="{ 'has-error': errors.has('koef' + index) }">
+						<input v-validate.initial="{ required: true, regex: inputsRegex, 'not-empty': true }"
+							   :value="oneInput.view" @input="oneInput.view = $event.target.value" @change="onInputChange($event.target.value, index)"
+							   type="text" :name="'koef' + index" class="form-control">
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">Маржа БК</th>
 
-	<script type="text/x-template" id="toggle-variants-tpl">
-		<div class="btn-group">
-			<button type="button"
+				<td :colspan="resultsCount" class="text-center">
+					<div v-if="errors.items.length" class="alert alert-danger">
+						Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{ getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов' )}}
+					</div>
+					<div v-else>
+						{{ calcMarginBk(realMarginsSum) | toFormat(2) }}%
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">Вероятность наступления исхода</th>
+				<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+					<div v-if="errors.items.length" class="alert alert-danger">
+						Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов')}}
+					</div>
+					<div v-else>
+						<!-- todo метод с проверкой на NaN -->
+						{{ oneInput.realMargin/(realMarginsSum) * 100 | toFormat(2) }}%
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">Вероятность с учётом маржи</th>
+				<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+					<div v-if="!errors.has('koef' + index) && !isNaN(oneInput.realMargin)">
+						{{ oneInput.realMargin * 100 | toFormat(2) }}%
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">Реальные коэффициенты</th>
+				<td v-for="(oneInput, index) in inputsFiltered" :key="index">
+					<div v-if="!errors.items.length">
+						{{ calcRealKoef(oneInput.realMargin, realMarginsSum) | toFormat(2) }}
+					</div>
+				</td>
+			</tr>
+			</tbody>
+		</table>
+
+	</div>
+</div>
+
+<script type="text/x-template" id="toggle-variants-tpl">
+	<div class="btn-group">
+		<button type="button"
 				v-for="(key, val) in values"
 				@click="changeSelectVal(val)"
 				:class="[ 'btn', selected == val ? 'btn-success' : 'btn-default' ]"
-			>{{ key }}</button>
-		</div>
-	</script>
-  	<script>
-		Vue.use(VeeValidate);
+		>{{ key }}</button>
+	</div>
+</script>
+<script>
+	Vue.use(VeeValidate);
 
-		var ToggleVariants = {
-			props: [ 'values', 'selected', 'def' ],
-			template: '#toggle-variants-tpl',
-			ready: function(){
-				this.selected = this.def;
-			},
-			methods: {
-				changeSelectVal: function(val){
-					this.$emit('update:selected', val)
-				}
+	var ToggleVariants = {
+		props: [ 'values', 'selected', 'def' ],
+		template: '#toggle-variants-tpl',
+		ready: function(){
+			this.selected = this.def;
+		},
+		methods: {
+			changeSelectVal: function(val){
+				this.$emit('update:selected', val)
 			}
-		};
-		var app3bet = new Vue({
-			el: '#app3bet',
-			created: function(){
-				while (this.inputs.length < this.resultsMax) {
-					this.inputs.push({ 'view': '', 'clean': '' });
+		}
+	};
+	var app3bet = new Vue({
+		el: '#app3bet',
+		created: function(){
+			var app = this;
+			while (app.inputs.length < app.resultsMax) {
+				app.inputs.push({ 'view': '', 'clean': '' });
+			}
+
+			var notEmptyRule = {
+				getMessage: function(){
+					return 'Значение должно быть больше нуля.';
+				},
+				validate: function(value){
+					return value.replace(',', '.') > 0;
+				}
+			};
+
+			app.$validator.extend('not-empty', notEmptyRule);
+		},
+		data: {
+			resultVariants: { 2 : 'Два исхода', 3 : 'Три исхода' },
+			resultsCountChosen: 0,
+			inputs: [],
+			inputsRegex: /^\d+([\.,]\d+)?$/,
+			resultsMin: 2,
+			resultsMax: 3,
+			results: [],
+			realMarginsSum: ''
+		},
+		watch: {
+			inputs: function (n, o) {
+				//console.log('inputs', this.inputs);
+			}
+		},
+		computed: {
+			resultsCount: {
+				get: function(){
+					return this.resultsCountChosen || this.resultsMin; /* А может лучше будет Math.max */
+				},
+				set: function(val){
+					this.resultsCountChosen = val;
 				}
 			},
-			data: {
-				resultVariants: { 2 : 'Два исхода', 3 : 'Три исхода' },
-				resultsCountChosen: 0,
-				inputs: [],
-				inputsRegex: /^\d+([\.,]\d+)?$/,
-				resultsMin: 2,
-				resultsMax: 3,
-				results: []
-			},
-			computed: {
-				resultsCount: {
-					get: function(){
-						return this.resultsCountChosen || this.resultsMin; /* А может лучше будет Math.max */
-					},
-					set: function(val){
-						this.resultsCountChosen = val;
-					}
-				},
-				realMargins: function() {
-					this.inputs.forEach(function(input) {
+			inputsFiltered: function(){
+				return this.inputs.slice(0, this.resultsCount);
+			}
+		},
+		filters: {
+			toFormat: function (value, precision) {
+				if (value > 0 && precision > 0) {
+					value = value.toFixed(precision).replace('.', ',');
+				}
 
-						input.realMargin = 1/input.clean;
+				return value;
+			}
+		},
+		methods: {
+			onInputChange: function(value, inputIndex){
+				var app = this;
+				if (!app.$validator.errors.has('koef' + inputIndex)) {
+					app.inputs[inputIndex].clean = value.length ? value.replace(',', '.') : '';
+					app.inputs[inputIndex].realMargin = app.inputs[inputIndex].clean > 0 ? 1/app.inputs[inputIndex].clean : '';
+
+				}
+				if (!this.$validator.errors.items.length) {
+					app.realMarginsSum = 0;
+					app.inputsFiltered.forEach(function(oneInput) {
+						app.realMarginsSum += parseFloat(oneInput.realMargin);
 					});
-				},
-				inputsFiltered: function(){
-					return this.inputs.slice(0, this.resultsCount);
 				}
 			},
-			methods: {
-				onInputChange: function(value, inputIndex){
-					// todo норм валидацию
-					this.inputs[inputIndex].clean = value.length ? value.replace(',', '.') : '';
-
-					return value;
-				},
-				getDeclension: function(number, one, two, five){
-					/* На самом деле этот метод не так уж необходим, можно и попроще сообщение для алерта придумать, но захотелось просклонять */
-					numberLocal = Math.abs(number);
-					numberLocal %= 100;
-					if (numberLocal >= 5 && numberLocal <= 20) {
-						return five
-					}
-					numberLocal %= 10;
-					if (numberLocal == 1) {
-						return one;
-					}
-					if (numberLocal >= 2 && numberLocal <= 4) {
-						return two;
-					}
-
-					return five;
+			getDeclension: function(number, one, two, five){
+				var numberLocal = Math.abs(number);
+				numberLocal %= 100;
+				if (numberLocal >= 5 && numberLocal <= 20) {
+					return five
 				}
+				numberLocal %= 10;
+				if (numberLocal == 1) {
+					return one;
+				}
+				if (numberLocal >= 2 && numberLocal <= 4) {
+					return two;
+				}
+
+				return five;
 			},
-			components: {
-				'toggle-variants': ToggleVariants
+			calcMarginBk: function(realMarginsSum){
+				var marginBk = '';
+				if (realMarginsSum > 0) {
+					marginBk = (realMarginsSum - 1) * 100;
+				}
+
+				return !isNaN(marginBk) ? marginBk : '';
+			},
+			calcRealKoef: function(realMargin, realMarginsSum){
+				var realKoef = '';
+				if (realMargin > 0 && realMarginsSum > 0) {
+					realKoef =  1 / (realMargin/(realMarginsSum - 1));
+				}
+
+				return ''; //!isNaN(realKoef) ? realKoef : ''; todo неверно вычисляется + округление
 			}
-		});
-	</script>
-  </body>
+		},
+		components: {
+			'toggle-variants': ToggleVariants
+		}
+	});
+</script>
+</body>
 </html>
 
 
