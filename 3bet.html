@@ -45,7 +45,7 @@
 						Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{ getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов' )}}
 					</div>
 					<div v-else>
-						{{ calcMarginBk(realMarginsSum) | toFormat(2) }}%
+						{{ calcMarginBk(realMarginsSum) | toFormatPercents(2) }}
 					</div>
 				</td>
 			</tr>
@@ -56,8 +56,7 @@
 						Необходимо указать {{ resultsCount == 2 ? 'оба' : 'все ' + resultsCount }} {{getDeclension(resultsCount, 'коэффициент', 'коэффициента', 'коэффициентов')}}
 					</div>
 					<div v-else>
-						<!-- todo метод с проверкой на NaN -->
-						{{ oneInput.realMargin/(realMarginsSum) * 100 | toFormat(2) }}%
+						{{ calcResultsProbability(oneInput.realMargin, realMarginsSum) | toFormatPercents(2) }}
 					</div>
 				</td>
 			</tr>
@@ -65,7 +64,7 @@
 				<th scope="row">Вероятность с учётом маржи</th>
 				<td v-for="(oneInput, index) in inputsFiltered" :key="index">
 					<div v-if="!errors.has('koef' + index) && !isNaN(oneInput.realMargin)">
-						{{ oneInput.realMargin * 100 | toFormat(2) }}%
+						{{ oneInput.realMargin | toFormatPercents(2) }}
 					</div>
 				</td>
 			</tr>
@@ -93,8 +92,16 @@
 	</div>
 </script>
 <script>
+	var config = {
+		resultVariants: {
+			2: 'Два исхода',
+			3: 'Три исхода',
+			4: 'Четыре исхода',
+			5: 'Пять исходов'
+		},
+		resultsMax: 3
+	};
 	Vue.use(VeeValidate);
-
 	var ToggleVariants = {
 		props: [ 'values', 'selected', 'def' ],
 		template: '#toggle-variants-tpl',
@@ -102,6 +109,7 @@
 			this.selected = this.def;
 		},
 		methods: {
+			//todo обновлять вероятности при переключении исходов
 			changeSelectVal: function(val){
 				this.$emit('update:selected', val)
 			}
@@ -123,28 +131,33 @@
 					return value.replace(',', '.') > 0;
 				}
 			};
-
 			app.$validator.extend('not-empty', notEmptyRule);
+
+			app.resultVariants = (function(obj, max) {
+				var result = {}, key;
+				for (key in obj) {
+					if (obj.hasOwnProperty(key) && key <= max ) {
+						result[key] = obj[key];
+					}
+				}
+
+				return result;
+			})(config.resultVariants, app.resultsMax);
 		},
 		data: {
-			resultVariants: { 2 : 'Два исхода', 3 : 'Три исхода' },
+			resultVariants: {},
 			resultsCountChosen: 0,
 			inputs: [],
 			inputsRegex: /^\d+([\.,]\d+)?$/,
 			resultsMin: 2,
-			resultsMax: 3,
+			resultsMax: config.resultsMax,
 			results: [],
 			realMarginsSum: ''
-		},
-		watch: {
-			inputs: function (n, o) {
-				//console.log('inputs', this.inputs);
-			}
 		},
 		computed: {
 			resultsCount: {
 				get: function(){
-					return this.resultsCountChosen || this.resultsMin; /* А может лучше будет Math.max */
+					return Math.max(this.resultsCountChosen, this.resultsMin);
 				},
 				set: function(val){
 					this.resultsCountChosen = val;
@@ -158,6 +171,14 @@
 			toFormat: function (value, precision) {
 				if (value > 0 && precision > 0) {
 					value = value.toFixed(precision).replace('.', ',');
+				}
+
+				return value;
+			},
+			toFormatPercents: function (value, precision) {
+				if (value > 0 && precision > 0) {
+					value = value * 100;
+					value = value.toFixed(precision).replace('.', ',') + '%';
 				}
 
 				return value;
@@ -197,18 +218,26 @@
 			calcMarginBk: function(realMarginsSum){
 				var marginBk = '';
 				if (realMarginsSum > 0) {
-					marginBk = (realMarginsSum - 1) * 100;
+					marginBk = (realMarginsSum - 1);
 				}
 
 				return !isNaN(marginBk) ? marginBk : '';
 			},
+			calcResultsProbability: function(realMargin, realMarginsSum){
+				var resultsProbability = '';
+				if (realMargin > 0 && realMarginsSum > 0) {
+					resultsProbability = (realMargin/realMarginsSum);
+				}
+
+				return !isNaN(resultsProbability) ? resultsProbability : '';
+			},
 			calcRealKoef: function(realMargin, realMarginsSum){
 				var realKoef = '';
 				if (realMargin > 0 && realMarginsSum > 0) {
-					realKoef =  1 / (realMargin/(realMarginsSum - 1));
+					realKoef =  1 / (realMargin/realMarginsSum);
 				}
 
-				return ''; //!isNaN(realKoef) ? realKoef : ''; todo неверно вычисляется + округление
+				return !isNaN(realKoef) ? realKoef : '';
 			}
 		},
 		components: {
